@@ -70,12 +70,7 @@ contract AssimilatorFactory is IAssimilatorFactory {
             revert("assimilator-already-exists");
         }
         AssimilatorV3 assimilator = new AssimilatorV3(
-            ICurveFactory(curveFactory).wETH(),
-            _quote,
-            _oracle,
-            _token,
-            _tokenDecimals,
-            IOracle(_oracle).decimals()
+            ICurveFactory(curveFactory).wETH(), _quote, _oracle, _token, _tokenDecimals, IOracle(_oracle).decimals()
         );
         assimilators[assimilatorID] = assimilator;
         emit NewAssimilator(msg.sender, assimilatorID, address(assimilator), address(_oracle), _token, _quote);

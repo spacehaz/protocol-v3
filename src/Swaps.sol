@@ -100,10 +100,7 @@ library Swaps {
         tAmt_ = Assimilators.viewRawAmount(_t.addr, _amt.abs());
     }
 
-    function targetSwap(Storage.Curve storage curve, TargetSwapData memory _swapData)
-        external
-        returns (uint256 oAmt_)
-    {
+    function targetSwap(Storage.Curve storage curve, TargetSwapData memory _swapData) external returns (uint256 oAmt_) {
         (Storage.Assimilator memory _o, Storage.Assimilator memory _t) =
             getOriginAndTarget(curve, _swapData._origin, _swapData._target);
         require(_swapData._origin != _swapData._target, "swap/same-origin-target");

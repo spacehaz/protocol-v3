@@ -385,19 +385,19 @@ library ABDKMathQuad {
                 } // NaN
                 else {
                     return negative
-                        ? bytes8(0xFFF0000000000000) // -Infinity
+                        ? bytes8(0xFFF0000000000000)  // -Infinity
                         : bytes8(0x7FF0000000000000);
                 } // Infinity
             }
 
             if (exponent > 17406) {
                 return negative
-                    ? bytes8(0xFFF0000000000000) // -Infinity
+                    ? bytes8(0xFFF0000000000000)  // -Infinity
                     : bytes8(0x7FF0000000000000);
             } // Infinity
             else if (exponent < 15309) {
                 return negative
-                    ? bytes8(0x8000000000000000) // -0
+                    ? bytes8(0x8000000000000000)  // -0
                     : bytes8(0x0000000000000000);
             } // 0
             else if (exponent < 15361) {
@@ -755,9 +755,10 @@ library ABDKMathQuad {
                     xExponent = xExponent + msb - 16607;
                 }
 
-                return bytes16(
-                    uint128(uint128((x ^ y) & 0x80000000000000000000000000000000) | xExponent << 112 | xSignifier)
-                );
+                return
+                    bytes16(
+                        uint128(uint128((x ^ y) & 0x80000000000000000000000000000000) | xExponent << 112 | xSignifier)
+                    );
             }
         }
     }
@@ -870,9 +871,10 @@ library ABDKMathQuad {
                     xExponent = xExponent + msb + 16269 - yExponent;
                 }
 
-                return bytes16(
-                    uint128(uint128((x ^ y) & 0x80000000000000000000000000000000) | xExponent << 112 | xSignifier)
-                );
+                return
+                    bytes16(
+                        uint128(uint128((x ^ y) & 0x80000000000000000000000000000000) | xExponent << 112 | xSignifier)
+                    );
             }
         }
     }

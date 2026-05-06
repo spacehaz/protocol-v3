@@ -90,11 +90,7 @@ contract DepositTest is Test {
         console.log("config : ", address(config));
         assimFactory = new AssimilatorFactory(address(config));
         console.log("assimFactory : ", address(assimFactory));
-        curveFactory = new CurveFactoryV3(
-            address(assimFactory),
-            address(config),
-            Polygon.WMATIC
-        );
+        curveFactory = new CurveFactoryV3(address(assimFactory), address(config), Polygon.WMATIC);
         console.log("curveFactory : ", address(curveFactory));
         assimFactory.setCurveFactory(address(curveFactory));
         zap = new Zap(address(curveFactory));

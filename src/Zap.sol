@@ -301,7 +301,7 @@ contract Zap {
                         curveBaseDecimals: curveBaseDecimals,
                         curveQuoteBal: curveQuoteBal
                     })
-                    )
+                )
             );
         }
 
@@ -319,7 +319,7 @@ contract Zap {
                     curveBaseDecimals: curveBaseDecimals,
                     curveQuoteBal: curveQuoteBal
                 })
-                )
+            )
         );
     }
 
@@ -441,12 +441,10 @@ contract Zap {
             require(zapData.curveBaseDecimals <= 18, "zap/big-decimals");
 
             // Update user's ratio
-            userRatio = recvAmount.mul(10 ** (36 - uint256(zapData.curveBaseDecimals))).div(
-                zapData.zapAmount.sub(swapAmount).mul(1e12)
-            );
-            curveRatio = zapData.curveBaseBal.sub(recvAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals))).div(
-                zapData.curveQuoteBal.add(swapAmount).mul(1e12)
-            );
+            userRatio = recvAmount.mul(10 ** (36 - uint256(zapData.curveBaseDecimals)))
+                .div(zapData.zapAmount.sub(swapAmount).mul(1e12));
+            curveRatio = zapData.curveBaseBal.sub(recvAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals)))
+                .div(zapData.curveQuoteBal.add(swapAmount).mul(1e12));
 
             // If user's ratio is approx curve ratio, then just swap
             // I.e. ratio converges
@@ -494,12 +492,10 @@ contract Zap {
             require(zapData.curveBaseDecimals <= 18, "zap/big-decimals");
 
             // Update user's ratio
-            userRatio = zapData.zapAmount.sub(swapAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals))).div(
-                recvAmount.mul(1e12)
-            );
-            curveRatio = zapData.curveBaseBal.add(swapAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals))).div(
-                zapData.curveQuoteBal.sub(recvAmount).mul(1e12)
-            );
+            userRatio = zapData.zapAmount.sub(swapAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals)))
+                .div(recvAmount.mul(1e12));
+            curveRatio = zapData.curveBaseBal.add(swapAmount).mul(10 ** (36 - uint256(zapData.curveBaseDecimals)))
+                .div(zapData.curveQuoteBal.sub(recvAmount).mul(1e12));
 
             // If user's ratio is approx curve ratio, then just swap
             // I.e. ratio converges

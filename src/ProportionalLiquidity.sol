@@ -139,12 +139,12 @@ library ProportionalLiquidity {
         for (uint256 i = 0; i < _length; i++) {
             if (
                 _toETH
-                    && (
-                        IAssimilator(curve.assets[i].addr).underlyingToken() == IAssimilator(curve.assets[i].addr).getWeth()
-                    )
+                    && (IAssimilator(curve.assets[i].addr).underlyingToken()
+                            == IAssimilator(curve.assets[i].addr).getWeth())
             ) {
-                withdrawals_[i] =
-                    Assimilators.outputNumeraire(curve.assets[i].addr, msg.sender, _oBals[i].mul(_multiplier), true);
+                withdrawals_[i] = Assimilators.outputNumeraire(
+                    curve.assets[i].addr, msg.sender, _oBals[i].mul(_multiplier), true
+                );
             } else {
                 withdrawals_[i] =
                     Assimilators.outputNumeraire(curve.assets[i].addr, msg.sender, _oBals[i].mul(_multiplier), false);

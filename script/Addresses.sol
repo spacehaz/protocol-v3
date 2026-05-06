@@ -136,4 +136,12 @@ library Base {
 
     // usdt
     address public constant CHAINLINK_USDT_USD = 0xf19d560eB8d2ADf07BD6D13ed03e1D11215721F9;
+
+    // eurc
+    address public constant EURC = 0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42;
+    uint256 public constant EURC_DECIMALS = 6;
+    address public constant CHAINLINK_EURC_USD = 0xDAe398520e2B67cd3f27aeF9Cf14D93D927f8250;
+
+    // Epsilon (Pool Fee)
+    uint256 public constant EURC_EPSILON = 5e14; // (0.05%)
 }

@@ -92,12 +92,15 @@ contract CurveFactoryV3 is ICurveFactory, Ownable {
         uint256 baseDec = IERC20Metadata(_info._baseCurrency).decimals();
 
         CurveIDPair memory idPair = generateCurveID(_info._baseCurrency, _info._quoteCurrency);
-        if (curves[idPair.curveId] != address(0) || curves[idPair.curveIdReversed] != address(0)) revert("pair-exists");
+        if (curves[idPair.curveId] != address(0) || curves[idPair.curveIdReversed] != address(0)) {
+            revert("pair-exists");
+        }
         AssimilatorV3 _baseAssim;
         _baseAssim = (assimilatorFactory.getAssimilator(_info._baseCurrency, _info._quoteCurrency));
         if (address(_baseAssim) == address(0)) {
-            _baseAssim =
-                assimilatorFactory.newAssimilator(_info._quoteCurrency, _info._baseOracle, _info._baseCurrency, baseDec);
+            _baseAssim = assimilatorFactory.newAssimilator(
+                _info._quoteCurrency, _info._baseOracle, _info._baseCurrency, baseDec
+            );
         }
         AssimilatorV3 _quoteAssim;
         _quoteAssim = (assimilatorFactory.getAssimilator(_info._quoteCurrency, _info._baseCurrency));
@@ -129,14 +132,7 @@ contract CurveFactoryV3 is ICurveFactory, Ownable {
         _assetWeights[1] = _info._quoteWeight;
 
         // New curve
-        Curve curve = new Curve(
-            _info._name,
-            _info._symbol,
-            _assets,
-            _assetWeights,
-            address(this),
-            address(config)
-        );
+        Curve curve = new Curve(_info._name, _info._symbol, _assets, _assetWeights, address(this), address(config));
         curve.setParams(_info._alpha, _info._beta, _info._feeAtHalt, _info._epsilon, _info._lambda);
         curves[idPair.curveId] = address(curve);
         curves[idPair.curveIdReversed] = address(curve);
