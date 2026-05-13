@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   useAccount,
   useReadContract,
@@ -8,6 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
+import { BFX, type IBFX } from "bfx-sdk";
 import { curveAbi, erc20Abi, assimilatorAbi, type PoolConfig } from "@/config/contracts";
 import { type Token } from "@/config/tokens";
 
@@ -72,6 +73,71 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
         ).toFixed(6)
       : null;
 
+  // Contract call timing — track isFetching transitions
+  const [contractCallMs, setContractCallMs] = useState<number | null>(null);
+  const fetchStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (parsedInput <= 0n) {
+      setContractCallMs(null);
+      fetchStartRef.current = null;
+      return;
+    }
+    if (isPreviewing && fetchStartRef.current === null) {
+      fetchStartRef.current = Date.now();
+    } else if (!isPreviewing && fetchStartRef.current !== null) {
+      setContractCallMs(Date.now() - fetchStartRef.current);
+      fetchStartRef.current = null;
+    }
+  }, [isPreviewing, parsedInput]);
+
+  // SDK (bfx-sdk) off-chain quote with timing
+  const bfxRef = useRef<IBFX | null>(null);
+  const [bfxReady, setBfxReady] = useState(false);
+  const [sdkRate, setSdkRate] = useState<string | null>(null);
+  const [sdkCallMs, setSdkCallMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    setBfxReady(false);
+    setSdkRate(null);
+    setSdkCallMs(null);
+    const rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL ?? "https://mainnet.base.org";
+    let cancelled = false;
+    BFX.create(pool.curveAddress, rpcUrl).then((p) => {
+      if (!cancelled) {
+        bfxRef.current = p;
+        setBfxReady(true);
+      } else {
+        p.stop();
+      }
+    });
+    return () => {
+      cancelled = true;
+      bfxRef.current?.stop();
+      bfxRef.current = null;
+    };
+  }, [pool.curveAddress]);
+
+  useEffect(() => {
+    if (parsedInput <= 0n || !bfxReady || !bfxRef.current) {
+      setSdkRate(null);
+      setSdkCallMs(null);
+      return;
+    }
+    const start = performance.now();
+    try {
+      const result = bfxRef.current.quote(fromToken.address, toToken.address, parsedInput);
+      const elapsed = performance.now() - start;
+      setSdkCallMs(elapsed);
+      setSdkRate(
+        (Number(formatUnits(result.amountOut, toToken.decimals)) / Number(inputAmount)).toFixed(6)
+      );
+    } catch {
+      setSdkRate(null);
+      setSdkCallMs(null);
+    }
+  }, [parsedInput, bfxReady, fromToken.address, toToken.address, toToken.decimals, inputAmount]);
+
   // Oracle rate from base assimilator (8 decimals)
   const { data: oracleRate } = useReadContract({
     address: pool.baseAssimilatorAddress,
@@ -131,6 +197,7 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
   useEffect(() => {
     setInputAmount("");
     setDirection("base-quote");
+    setContractCallMs(null);
     resetSwap();
     resetApprove();
   }, [pool.id, resetSwap, resetApprove]);
@@ -271,11 +338,27 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
       {rate && (
         <div className="text-sm text-zinc-400 px-1 space-y-1">
           <div className="flex justify-between">
-            <span>Rate</span>
+            <span>Rate (Contract call)</span>
             <span>
               1 {fromToken.symbol} = {rate} {toToken.symbol}
+              {contractCallMs !== null && (
+                <span className="text-zinc-500 ml-1">({contractCallMs}ms)</span>
+              )}
             </span>
           </div>
+          {sdkRate && (
+            <div className="flex justify-between">
+              <span>Rate (SDK call)</span>
+              <span>
+                1 {fromToken.symbol} = {sdkRate} {toToken.symbol}
+                {sdkCallMs !== null && (
+                  <span className="text-zinc-500 ml-1">
+                    ({sdkCallMs < 1 ? sdkCallMs.toFixed(2) : Math.round(sdkCallMs)}ms)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span>Min received</span>
             <span>
