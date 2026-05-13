@@ -12,4 +12,11 @@ export const USDC = {
   decimals: 6,
 } as const;
 
-export type Token = typeof EURC | typeof USDC;
+export const XSGD = {
+  address: "0x0A4C9cb2778aB3302996A34BeFCF9a8Bc288C33b" as const,
+  symbol: "XSGD",
+  name: "Singapore Dollar Token",
+  decimals: 6,
+} as const;
+
+export type Token = typeof EURC | typeof USDC | typeof XSGD;

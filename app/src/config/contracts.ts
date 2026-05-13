@@ -1,8 +1,44 @@
+import { EURC, USDC, XSGD, type Token } from "./tokens";
+
+// Backward-compatible flat exports
 export const CURVE_ADDRESS = "0x671366075cc7b3b611de9ecf856e44587a11f303" as const;
 export const ROUTER_ADDRESS = "0xa7ddef992fda672717e82698dfa3ff932c26441e" as const;
 export const ZAP_ADDRESS = "0xa0ae3693953352fcc9f99226cba2948b5784af16" as const;
 export const EURC_ASSIMILATOR_ADDRESS = "0x131A1261977A4f3CCFfBDc0f1a67e79Cea874e94" as const;
 export const USDC_ASSIMILATOR_ADDRESS = "0x8d040951e1B2487CDb381BB3C96e838e288fBc3a" as const;
+
+// Pool registry
+export interface PoolConfig {
+  id: string;
+  name: string;
+  curveAddress: `0x${string}`;
+  baseToken: Token;
+  quoteToken: Token;
+  baseAssimilatorAddress: `0x${string}`;
+}
+
+export type PoolId = "eurc-usdc" | "xsgd-usdc";
+
+export const POOLS: Record<PoolId, PoolConfig> = {
+  "eurc-usdc": {
+    id: "eurc-usdc",
+    name: "EURC / USDC",
+    curveAddress: "0x671366075cc7b3b611de9ecf856e44587a11f303",
+    baseToken: EURC,
+    quoteToken: USDC,
+    baseAssimilatorAddress: "0x131A1261977A4f3CCFfBDc0f1a67e79Cea874e94",
+  },
+  "xsgd-usdc": {
+    id: "xsgd-usdc",
+    name: "XSGD / USDC",
+    curveAddress: "0xF0c350c1A7a259D99e882A0123c6934D1af46ef0",
+    baseToken: XSGD,
+    quoteToken: USDC,
+    baseAssimilatorAddress: "0xeeF0508a164DEa1E65442102105bD21c2875a752",
+  },
+};
+
+export const DEFAULT_POOL_ID: PoolId = "eurc-usdc";
 
 export const assimilatorAbi = [
   {

@@ -8,15 +8,17 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
-import { CURVE_ADDRESS, curveAbi, erc20Abi } from "@/config/contracts";
-import { EURC, USDC } from "@/config/tokens";
+import { curveAbi, erc20Abi, type PoolConfig } from "@/config/contracts";
 
 const SLIPPAGE_BPS = 100; // 1% slippage for deposits
 const DEADLINE_SECONDS = 300;
 
-export function DepositForm() {
+export function DepositForm({ pool }: { pool: PoolConfig }) {
   const { address, isConnected } = useAccount();
   const [usdInput, setUsdInput] = useState("");
+
+  const baseToken = pool.baseToken;
+  const quoteToken = pool.quoteToken;
 
   // Parse to 18 decimals (deposit() takes an 18-decimal USD value)
   const parsedDeposit =
@@ -24,7 +26,7 @@ export function DepositForm() {
 
   // Preview deposit
   const { data: depositPreview, isFetching: isPreviewing } = useReadContract({
-    address: CURVE_ADDRESS,
+    address: pool.curveAddress,
     abi: curveAbi,
     functionName: "viewDeposit",
     args: [parsedDeposit],
@@ -33,20 +35,20 @@ export function DepositForm() {
 
   const lpTokens = depositPreview ? depositPreview[0] : 0n;
   const requiredAmounts = depositPreview ? depositPreview[1] : [];
-  const eurcNeeded = requiredAmounts.length > 0 ? requiredAmounts[0] : 0n;
-  const usdcNeeded = requiredAmounts.length > 1 ? requiredAmounts[1] : 0n;
+  const baseNeeded = requiredAmounts.length > 0 ? requiredAmounts[0] : 0n;
+  const quoteNeeded = requiredAmounts.length > 1 ? requiredAmounts[1] : 0n;
 
   // User balances
-  const { data: eurcBalance } = useReadContract({
-    address: EURC.address,
+  const { data: baseBalance } = useReadContract({
+    address: baseToken.address,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: { enabled: !!address },
   });
 
-  const { data: usdcBalance } = useReadContract({
-    address: USDC.address,
+  const { data: quoteBalance } = useReadContract({
+    address: quoteToken.address,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
@@ -54,59 +56,59 @@ export function DepositForm() {
   });
 
   // Allowances
-  const { data: eurcAllowance, refetch: refetchEurcAllowance } =
+  const { data: baseAllowance, refetch: refetchBaseAllowance } =
     useReadContract({
-      address: EURC.address,
+      address: baseToken.address,
       abi: erc20Abi,
       functionName: "allowance",
-      args: address ? [address, CURVE_ADDRESS] : undefined,
+      args: address ? [address, pool.curveAddress] : undefined,
       query: { enabled: !!address },
     });
 
-  const { data: usdcAllowance, refetch: refetchUsdcAllowance } =
+  const { data: quoteAllowance, refetch: refetchQuoteAllowance } =
     useReadContract({
-      address: USDC.address,
+      address: quoteToken.address,
       abi: erc20Abi,
       functionName: "allowance",
-      args: address ? [address, CURVE_ADDRESS] : undefined,
+      args: address ? [address, pool.curveAddress] : undefined,
       query: { enabled: !!address },
     });
 
-  const needsEurcApproval =
-    eurcNeeded > 0n &&
-    eurcAllowance !== undefined &&
-    eurcAllowance < eurcNeeded;
-  const needsUsdcApproval =
-    usdcNeeded > 0n &&
-    usdcAllowance !== undefined &&
-    usdcAllowance < usdcNeeded;
+  const needsBaseApproval =
+    baseNeeded > 0n &&
+    baseAllowance !== undefined &&
+    baseAllowance < baseNeeded;
+  const needsQuoteApproval =
+    quoteNeeded > 0n &&
+    quoteAllowance !== undefined &&
+    quoteAllowance < quoteNeeded;
 
-  const insufficientEurc =
-    eurcNeeded > 0n && eurcBalance !== undefined && eurcBalance < eurcNeeded;
-  const insufficientUsdc =
-    usdcNeeded > 0n && usdcBalance !== undefined && usdcBalance < usdcNeeded;
+  const insufficientBase =
+    baseNeeded > 0n && baseBalance !== undefined && baseBalance < baseNeeded;
+  const insufficientQuote =
+    quoteNeeded > 0n && quoteBalance !== undefined && quoteBalance < quoteNeeded;
 
-  // Approve EURC
+  // Approve base token
   const {
-    writeContract: approveEurc,
-    data: approveEurcHash,
-    isPending: isApprovingEurc,
-    reset: resetApproveEurc,
+    writeContract: approveBase,
+    data: approveBaseHash,
+    isPending: isApprovingBase,
+    reset: resetApproveBase,
   } = useWriteContract();
 
-  const { isLoading: isEurcApproveConfirming, isSuccess: eurcApproveConfirmed } =
-    useWaitForTransactionReceipt({ hash: approveEurcHash });
+  const { isLoading: isBaseApproveConfirming, isSuccess: baseApproveConfirmed } =
+    useWaitForTransactionReceipt({ hash: approveBaseHash });
 
-  // Approve USDC
+  // Approve quote token
   const {
-    writeContract: approveUsdc,
-    data: approveUsdcHash,
-    isPending: isApprovingUsdc,
-    reset: resetApproveUsdc,
+    writeContract: approveQuote,
+    data: approveQuoteHash,
+    isPending: isApprovingQuote,
+    reset: resetApproveQuote,
   } = useWriteContract();
 
-  const { isLoading: isUsdcApproveConfirming, isSuccess: usdcApproveConfirmed } =
-    useWaitForTransactionReceipt({ hash: approveUsdcHash });
+  const { isLoading: isQuoteApproveConfirming, isSuccess: quoteApproveConfirmed } =
+    useWaitForTransactionReceipt({ hash: approveQuoteHash });
 
   // Deposit
   const {
@@ -121,94 +123,102 @@ export function DepositForm() {
 
   // Refetch allowances after approvals
   useEffect(() => {
-    if (eurcApproveConfirmed) refetchEurcAllowance();
-  }, [eurcApproveConfirmed, refetchEurcAllowance]);
+    if (baseApproveConfirmed) refetchBaseAllowance();
+  }, [baseApproveConfirmed, refetchBaseAllowance]);
 
   useEffect(() => {
-    if (usdcApproveConfirmed) refetchUsdcAllowance();
-  }, [usdcApproveConfirmed, refetchUsdcAllowance]);
+    if (quoteApproveConfirmed) refetchQuoteAllowance();
+  }, [quoteApproveConfirmed, refetchQuoteAllowance]);
 
   // Reset after deposit
   useEffect(() => {
     if (depositConfirmed) {
       setUsdInput("");
       resetDeposit();
-      resetApproveEurc();
-      resetApproveUsdc();
+      resetApproveBase();
+      resetApproveQuote();
     }
-  }, [depositConfirmed, resetDeposit, resetApproveEurc, resetApproveUsdc]);
+  }, [depositConfirmed, resetDeposit, resetApproveBase, resetApproveQuote]);
 
-  const handleApproveEurc = useCallback(() => {
-    approveEurc({
-      address: EURC.address,
+  // Reset state when pool changes
+  useEffect(() => {
+    setUsdInput("");
+    resetDeposit();
+    resetApproveBase();
+    resetApproveQuote();
+  }, [pool.id, resetDeposit, resetApproveBase, resetApproveQuote]);
+
+  const handleApproveBase = useCallback(() => {
+    approveBase({
+      address: baseToken.address,
       abi: erc20Abi,
       functionName: "approve",
-      args: [CURVE_ADDRESS, maxUint256],
+      args: [pool.curveAddress, maxUint256],
     });
-  }, [approveEurc]);
+  }, [approveBase, baseToken.address, pool.curveAddress]);
 
-  const handleApproveUsdc = useCallback(() => {
-    approveUsdc({
-      address: USDC.address,
+  const handleApproveQuote = useCallback(() => {
+    approveQuote({
+      address: quoteToken.address,
       abi: erc20Abi,
       functionName: "approve",
-      args: [CURVE_ADDRESS, maxUint256],
+      args: [pool.curveAddress, maxUint256],
     });
-  }, [approveUsdc]);
+  }, [approveQuote, quoteToken.address, pool.curveAddress]);
 
   const handleDeposit = useCallback(() => {
-    if (!parsedDeposit || !eurcNeeded || !usdcNeeded) return;
+    if (!parsedDeposit || !baseNeeded || !quoteNeeded) return;
     const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
     // Slippage bounds: min = needed * (1 - slippage), max = needed * (1 + slippage)
-    const minEurc = (eurcNeeded * BigInt(10000 - SLIPPAGE_BPS)) / 10000n;
-    const maxEurc = (eurcNeeded * BigInt(10000 + SLIPPAGE_BPS)) / 10000n;
-    const minUsdc = (usdcNeeded * BigInt(10000 - SLIPPAGE_BPS)) / 10000n;
-    const maxUsdc = (usdcNeeded * BigInt(10000 + SLIPPAGE_BPS)) / 10000n;
+    const minBase = (baseNeeded * BigInt(10000 - SLIPPAGE_BPS)) / 10000n;
+    const maxBase = (baseNeeded * BigInt(10000 + SLIPPAGE_BPS)) / 10000n;
+    const minQuote = (quoteNeeded * BigInt(10000 - SLIPPAGE_BPS)) / 10000n;
+    const maxQuote = (quoteNeeded * BigInt(10000 + SLIPPAGE_BPS)) / 10000n;
 
     deposit({
-      address: CURVE_ADDRESS,
+      address: pool.curveAddress,
       abi: curveAbi,
       functionName: "deposit",
-      args: [parsedDeposit, minUsdc, minEurc, maxUsdc, maxEurc, deadline],
+      args: [parsedDeposit, minQuote, minBase, maxQuote, maxBase, deadline],
     });
-  }, [deposit, parsedDeposit, eurcNeeded, usdcNeeded]);
+  }, [deposit, pool.curveAddress, parsedDeposit, baseNeeded, quoteNeeded]);
 
   const isBusy =
-    isApprovingEurc ||
-    isEurcApproveConfirming ||
-    isApprovingUsdc ||
-    isUsdcApproveConfirming ||
+    isApprovingBase ||
+    isBaseApproveConfirming ||
+    isApprovingQuote ||
+    isQuoteApproveConfirming ||
     isDepositing ||
     isDepositConfirming;
 
   const buttonLabel = !isConnected
     ? "Connect Wallet"
-    : insufficientEurc || insufficientUsdc
+    : insufficientBase || insufficientQuote
       ? "Insufficient Balance"
       : isBusy
-        ? isApprovingEurc || isEurcApproveConfirming
-          ? "Approving EURC..."
-          : isApprovingUsdc || isUsdcApproveConfirming
-            ? "Approving USDC..."
+        ? isApprovingBase || isBaseApproveConfirming
+          ? `Approving ${baseToken.symbol}...`
+          : isApprovingQuote || isQuoteApproveConfirming
+            ? `Approving ${quoteToken.symbol}...`
             : "Depositing..."
-        : needsEurcApproval
-          ? "Approve EURC"
-          : needsUsdcApproval
-            ? "Approve USDC"
+        : needsBaseApproval
+          ? `Approve ${baseToken.symbol}`
+          : needsQuoteApproval
+            ? `Approve ${quoteToken.symbol}`
             : "Deposit";
 
   const buttonDisabled =
     !isConnected ||
     !parsedDeposit ||
-    insufficientEurc ||
-    insufficientUsdc ||
+    insufficientBase ||
+    insufficientQuote ||
     isBusy;
 
   const handleClick = () => {
-    if (needsEurcApproval) {
-      handleApproveEurc();
-    } else if (needsUsdcApproval) {
-      handleApproveUsdc();
+    if (needsBaseApproval) {
+      handleApproveBase();
+    } else if (needsQuoteApproval) {
+      handleApproveQuote();
     } else {
       handleDeposit();
     }
@@ -254,18 +264,18 @@ export function DepositForm() {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">EURC required</span>
+                <span className="text-zinc-400">{baseToken.symbol} required</span>
                 <span className="font-medium">
-                  {Number(formatUnits(eurcNeeded, EURC.decimals)).toLocaleString(
+                  {Number(formatUnits(baseNeeded, baseToken.decimals)).toLocaleString(
                     undefined,
                     { maximumFractionDigits: 2 }
                   )}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">USDC required</span>
+                <span className="text-zinc-400">{quoteToken.symbol} required</span>
                 <span className="font-medium">
-                  {Number(formatUnits(usdcNeeded, USDC.decimals)).toLocaleString(
+                  {Number(formatUnits(quoteNeeded, quoteToken.decimals)).toLocaleString(
                     undefined,
                     { maximumFractionDigits: 2 }
                   )}
@@ -280,18 +290,18 @@ export function DepositForm() {
       {address && (
         <div className="text-sm text-zinc-400 px-1 space-y-1">
           <div className="flex justify-between">
-            <span>Your EURC</span>
+            <span>Your {baseToken.symbol}</span>
             <span>
-              {eurcBalance !== undefined
-                ? Number(formatUnits(eurcBalance, EURC.decimals)).toFixed(2)
+              {baseBalance !== undefined
+                ? Number(formatUnits(baseBalance, baseToken.decimals)).toFixed(2)
                 : "..."}
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Your USDC</span>
+            <span>Your {quoteToken.symbol}</span>
             <span>
-              {usdcBalance !== undefined
-                ? Number(formatUnits(usdcBalance, USDC.decimals)).toFixed(2)
+              {quoteBalance !== undefined
+                ? Number(formatUnits(quoteBalance, quoteToken.decimals)).toFixed(2)
                 : "..."}
             </span>
           </div>

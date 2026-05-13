@@ -8,21 +8,21 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
-import { CURVE_ADDRESS, curveAbi, erc20Abi, EURC_ASSIMILATOR_ADDRESS, assimilatorAbi } from "@/config/contracts";
-import { EURC, USDC, type Token } from "@/config/tokens";
+import { curveAbi, erc20Abi, assimilatorAbi, type PoolConfig } from "@/config/contracts";
+import { type Token } from "@/config/tokens";
 
 const SLIPPAGE_BPS = 50; // 0.5%
 const DEADLINE_SECONDS = 300; // 5 min
 
-export function SwapCard() {
+export function SwapCard({ pool }: { pool: PoolConfig }) {
   const { address, isConnected } = useAccount();
   const [inputAmount, setInputAmount] = useState("");
-  const [direction, setDirection] = useState<"eurc-usdc" | "usdc-eurc">(
-    "eurc-usdc"
+  const [direction, setDirection] = useState<"base-quote" | "quote-base">(
+    "base-quote"
   );
 
-  const fromToken: Token = direction === "eurc-usdc" ? EURC : USDC;
-  const toToken: Token = direction === "eurc-usdc" ? USDC : EURC;
+  const fromToken: Token = direction === "base-quote" ? pool.baseToken : pool.quoteToken;
+  const toToken: Token = direction === "base-quote" ? pool.quoteToken : pool.baseToken;
 
   const parsedInput =
     inputAmount && Number(inputAmount) > 0
@@ -43,13 +43,13 @@ export function SwapCard() {
     address: fromToken.address,
     abi: erc20Abi,
     functionName: "allowance",
-    args: address ? [address, CURVE_ADDRESS] : undefined,
+    args: address ? [address, pool.curveAddress] : undefined,
     query: { enabled: !!address },
   });
 
   // Preview swap output
   const { data: previewOutput, isFetching: isPreviewing } = useReadContract({
-    address: CURVE_ADDRESS,
+    address: pool.curveAddress,
     abi: curveAbi,
     functionName: "viewOriginSwap",
     args: [fromToken.address, toToken.address, parsedInput],
@@ -72,9 +72,9 @@ export function SwapCard() {
         ).toFixed(6)
       : null;
 
-  // Oracle rate from EURC assimilator (8 decimals)
+  // Oracle rate from base assimilator (8 decimals)
   const { data: oracleRate } = useReadContract({
-    address: EURC_ASSIMILATOR_ADDRESS,
+    address: pool.baseAssimilatorAddress,
     abi: assimilatorAbi,
     functionName: "getRate",
   });
@@ -127,28 +127,36 @@ export function SwapCard() {
     }
   }, [isSwapConfirmed, resetSwap, resetApprove]);
 
+  // Reset state when pool changes
+  useEffect(() => {
+    setInputAmount("");
+    setDirection("base-quote");
+    resetSwap();
+    resetApprove();
+  }, [pool.id, resetSwap, resetApprove]);
+
   const handleApprove = useCallback(() => {
     approve({
       address: fromToken.address,
       abi: erc20Abi,
       functionName: "approve",
-      args: [CURVE_ADDRESS, maxUint256],
+      args: [pool.curveAddress, maxUint256],
     });
-  }, [approve, fromToken.address]);
+  }, [approve, fromToken.address, pool.curveAddress]);
 
   const handleSwap = useCallback(() => {
     if (!parsedInput || !minOutput) return;
     const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
     swap({
-      address: CURVE_ADDRESS,
+      address: pool.curveAddress,
       abi: curveAbi,
       functionName: "originSwap",
       args: [fromToken.address, toToken.address, parsedInput, minOutput, deadline],
     });
-  }, [swap, fromToken.address, toToken.address, parsedInput, minOutput]);
+  }, [swap, pool.curveAddress, fromToken.address, toToken.address, parsedInput, minOutput]);
 
   const toggleDirection = () => {
-    setDirection((d) => (d === "eurc-usdc" ? "usdc-eurc" : "eurc-usdc"));
+    setDirection((d) => (d === "base-quote" ? "quote-base" : "base-quote"));
     setInputAmount("");
     resetSwap();
     resetApprove();
@@ -278,7 +286,7 @@ export function SwapCard() {
           {oracleRateFormatted && (
             <div className="flex justify-between">
               <span>Oracle</span>
-              <span>1 EURC = {oracleRateFormatted} USD</span>
+              <span>1 {pool.baseToken.symbol} = {oracleRateFormatted} USD</span>
             </div>
           )}
         </div>

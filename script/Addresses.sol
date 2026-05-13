@@ -142,6 +142,12 @@ library Base {
     uint256 public constant EURC_DECIMALS = 6;
     address public constant CHAINLINK_EURC_USD = 0xDAe398520e2B67cd3f27aeF9Cf14D93D927f8250;
 
+    // xsgd
+    address public constant XSGD = 0x0A4C9cb2778aB3302996A34BeFCF9a8Bc288C33b;
+    uint256 public constant XSGD_DECIMALS = 6;
+    address public constant CHAINLINK_SGD_USD = 0x81575495532fB311Efc5C993B612564274F0949b;
+
     // Epsilon (Pool Fee)
     uint256 public constant EURC_EPSILON = 5e14; // (0.05%)
+    uint256 public constant XSGD_EPSILON = 5e14; // (0.05%)
 }

@@ -2,52 +2,51 @@
 
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-import { CURVE_ADDRESS, curveAbi, erc20Abi, EURC_ASSIMILATOR_ADDRESS, assimilatorAbi } from "@/config/contracts";
-import { EURC, USDC } from "@/config/tokens";
+import { curveAbi, erc20Abi, assimilatorAbi, type PoolConfig } from "@/config/contracts";
 
-export function PoolInfo() {
+export function PoolInfo({ pool }: { pool: PoolConfig }) {
   const { address } = useAccount();
 
-  // EURC balance in the Curve pool
-  const { data: eurcBalance } = useReadContract({
-    address: EURC.address,
+  // Base token balance in the Curve pool
+  const { data: baseBalance } = useReadContract({
+    address: pool.baseToken.address,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: [CURVE_ADDRESS],
+    args: [pool.curveAddress],
   });
 
-  // USDC balance in the Curve pool
-  const { data: usdcBalance } = useReadContract({
-    address: USDC.address,
+  // Quote token (USDC) balance in the Curve pool
+  const { data: quoteBalance } = useReadContract({
+    address: pool.quoteToken.address,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: [CURVE_ADDRESS],
+    args: [pool.curveAddress],
   });
 
   // Liquidity in USD terms (18 decimals)
   const { data: liquidityData } = useReadContract({
-    address: CURVE_ADDRESS,
+    address: pool.curveAddress,
     abi: curveAbi,
     functionName: "liquidity",
   });
 
   // Total LP supply
   const { data: totalSupply } = useReadContract({
-    address: CURVE_ADDRESS,
+    address: pool.curveAddress,
     abi: curveAbi,
     functionName: "totalSupply",
   });
 
-  // Oracle rate from EURC assimilator (8 decimals)
+  // Oracle rate from base assimilator (8 decimals)
   const { data: oracleRate } = useReadContract({
-    address: EURC_ASSIMILATOR_ADDRESS,
+    address: pool.baseAssimilatorAddress,
     abi: assimilatorAbi,
     functionName: "getRate",
   });
 
   // User LP balance
   const { data: userLpBalance } = useReadContract({
-    address: CURVE_ADDRESS,
+    address: pool.curveAddress,
     abi: curveAbi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
@@ -72,12 +71,12 @@ export function PoolInfo() {
     ? (Number(oracleRate) / 1e8).toFixed(4)
     : null;
 
-  const eurcPct =
+  const basePct =
     baseLiq !== null && totalLiquidity !== null && totalLiquidity > 0
       ? (baseLiq / totalLiquidity) * 100
       : null;
 
-  const usdcPct =
+  const quotePct =
     quoteLiq !== null && totalLiquidity !== null && totalLiquidity > 0
       ? (quoteLiq / totalLiquidity) * 100
       : null;
@@ -87,16 +86,19 @@ export function PoolInfo() {
       ? (Number(userLpBalance) / Number(totalSupply)) * 100
       : 0;
 
+  const baseSymbol = pool.baseToken.symbol;
+  const quoteSymbol = pool.quoteToken.symbol;
+
   return (
     <div className="rounded-2xl bg-zinc-900 border border-zinc-800 p-4 space-y-4">
-      <h2 className="text-lg font-semibold">EURC / USDC Pool</h2>
+      <h2 className="text-lg font-semibold">{pool.name} Pool</h2>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatBox
-          label="EURC in Pool"
+          label={`${baseSymbol} in Pool`}
           value={
-            eurcBalance !== undefined
-              ? Number(formatUnits(eurcBalance, EURC.decimals)).toLocaleString(
+            baseBalance !== undefined
+              ? Number(formatUnits(baseBalance, pool.baseToken.decimals)).toLocaleString(
                   undefined,
                   { maximumFractionDigits: 2 }
                 )
@@ -104,10 +106,10 @@ export function PoolInfo() {
           }
         />
         <StatBox
-          label="USDC in Pool"
+          label={`${quoteSymbol} in Pool`}
           value={
-            usdcBalance !== undefined
-              ? Number(formatUnits(usdcBalance, USDC.decimals)).toLocaleString(
+            quoteBalance !== undefined
+              ? Number(formatUnits(quoteBalance, pool.quoteToken.decimals)).toLocaleString(
                   undefined,
                   { maximumFractionDigits: 2 }
                 )
@@ -136,35 +138,35 @@ export function PoolInfo() {
           label="Oracle Rate"
           value={
             oracleRateFormatted
-              ? `1 EURC = ${oracleRateFormatted} USD`
+              ? `1 ${baseSymbol} = ${oracleRateFormatted} USD`
               : "..."
           }
         />
         <StatBox
           label="Pool Balance"
           value={
-            eurcPct !== null && usdcPct !== null
-              ? `EURC ${eurcPct.toFixed(1)}% / USDC ${usdcPct.toFixed(1)}%`
+            basePct !== null && quotePct !== null
+              ? `${baseSymbol} ${basePct.toFixed(1)}% / ${quoteSymbol} ${quotePct.toFixed(1)}%`
               : "..."
           }
         />
       </div>
 
       {/* Pool composition bar */}
-      {eurcPct !== null && usdcPct !== null && (
+      {basePct !== null && quotePct !== null && (
         <div className="px-1 space-y-2">
           <div className="flex justify-between text-xs text-zinc-400">
-            <span>EURC {eurcPct.toFixed(1)}%</span>
-            <span>USDC {usdcPct.toFixed(1)}%</span>
+            <span>{baseSymbol} {basePct.toFixed(1)}%</span>
+            <span>{quoteSymbol} {quotePct.toFixed(1)}%</span>
           </div>
           <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex">
             <div
               className="h-full bg-indigo-500 rounded-l-full"
-              style={{ width: `${eurcPct}%` }}
+              style={{ width: `${basePct}%` }}
             />
             <div
               className="h-full bg-emerald-500 rounded-r-full"
-              style={{ width: `${usdcPct}%` }}
+              style={{ width: `${quotePct}%` }}
             />
           </div>
         </div>
