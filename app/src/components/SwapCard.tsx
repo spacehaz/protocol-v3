@@ -5,6 +5,7 @@ import {
   useAccount,
   useReadContract,
   useWriteContract,
+  useSendTransaction,
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
@@ -167,13 +168,28 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
   const { isLoading: isApproveConfirming, isSuccess: isApproveConfirmed } =
     useWaitForTransactionReceipt({ hash: approveTxHash });
 
-  // Write: swap
+  // Swap: SDK path (bfx-sdk buildSwap → raw tx)
   const {
-    writeContract: swap,
-    data: swapTxHash,
-    isPending: isSwapping,
-    reset: resetSwap,
+    sendTransaction: sendSdkSwap,
+    data: sdkSwapTxHash,
+    isPending: isSdkSwapping,
+    reset: resetSdkSwap,
+  } = useSendTransaction();
+
+  // Swap: contract fallback (when SDK not yet ready)
+  const {
+    writeContract: sendContractSwap,
+    data: contractSwapTxHash,
+    isPending: isContractSwapping,
+    reset: resetContractSwap,
   } = useWriteContract();
+
+  const swapTxHash = sdkSwapTxHash ?? contractSwapTxHash;
+  const isSwapping = isSdkSwapping || isContractSwapping;
+  const resetSwap = useCallback(() => {
+    resetSdkSwap();
+    resetContractSwap();
+  }, [resetSdkSwap, resetContractSwap]);
 
   const { isLoading: isSwapConfirming, isSuccess: isSwapConfirmed } =
     useWaitForTransactionReceipt({ hash: swapTxHash });
@@ -212,16 +228,30 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
     });
   }, [approve, fromToken.address, pool.curveAddress]);
 
-  const handleSwap = useCallback(() => {
+  const handleSdkSwap = useCallback(() => {
+    if (!parsedInput || !minOutput || !bfxReady || !bfxRef.current || !address) return;
+    const deadline = Math.floor(Date.now() / 1000) + DEADLINE_SECONDS;
+    const tx = bfxRef.current.buildSwap({
+      tokenIn: fromToken.address,
+      tokenOut: toToken.address,
+      amountIn: parsedInput,
+      minAmountOut: minOutput,
+      recipient: address,
+      deadline,
+    });
+    sendSdkSwap({ to: tx.to, data: tx.data, value: tx.value });
+  }, [bfxReady, address, sendSdkSwap, fromToken.address, toToken.address, parsedInput, minOutput]);
+
+  const handleContractSwap = useCallback(() => {
     if (!parsedInput || !minOutput) return;
     const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_SECONDS);
-    swap({
+    sendContractSwap({
       address: pool.curveAddress,
       abi: curveAbi,
       functionName: "originSwap",
       args: [fromToken.address, toToken.address, parsedInput, minOutput, deadline],
     });
-  }, [swap, pool.curveAddress, fromToken.address, toToken.address, parsedInput, minOutput]);
+  }, [sendContractSwap, pool.curveAddress, fromToken.address, toToken.address, parsedInput, minOutput]);
 
   const toggleDirection = () => {
     setDirection((d) => (d === "base-quote" ? "quote-base" : "base-quote"));
@@ -233,32 +263,11 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
   const isBusy =
     isApproving || isApproveConfirming || isSwapping || isSwapConfirming;
 
-  const buttonLabel = !isConnected
-    ? "Connect Wallet"
-    : insufficientBalance
-      ? "Insufficient Balance"
-      : isBusy
-        ? isApproving || isApproveConfirming
-          ? "Approving..."
-          : "Swapping..."
-        : needsApproval
-          ? `Approve ${fromToken.symbol}`
-          : "Swap";
+  const baseSwapDisabled =
+    !isConnected || !parsedInput || insufficientBalance || isBusy || !previewOutput;
 
-  const buttonDisabled =
-    !isConnected ||
-    !parsedInput ||
-    insufficientBalance ||
-    isBusy ||
-    (!needsApproval && !previewOutput);
-
-  const handleClick = () => {
-    if (needsApproval) {
-      handleApprove();
-    } else {
-      handleSwap();
-    }
-  };
+  const sdkSwapDisabled = baseSwapDisabled || !bfxReady || !address;
+  const contractSwapDisabled = baseSwapDisabled;
 
   return (
     <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-4 space-y-2">
@@ -376,14 +385,47 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
         </div>
       )}
 
-      {/* Action button */}
-      <button
-        onClick={handleClick}
-        disabled={buttonDisabled}
-        className="w-full py-4 rounded-xl font-semibold text-lg transition-colors bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
-      >
-        {buttonLabel}
-      </button>
+      {/* Approve or swap buttons */}
+      {needsApproval ? (
+        <button
+          onClick={handleApprove}
+          disabled={!isConnected || isBusy}
+          className="w-full py-4 rounded-xl font-semibold text-lg transition-colors bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
+        >
+          {isApproving || isApproveConfirming ? "Approving..." : `Approve ${fromToken.symbol}`}
+        </button>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleSdkSwap}
+            disabled={sdkSwapDisabled}
+            className="py-4 rounded-xl font-semibold text-base transition-colors bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
+          >
+            {isSdkSwapping || (isSwapConfirming && sdkSwapTxHash)
+              ? "Swapping..."
+              : !isConnected
+                ? "Connect Wallet"
+                : insufficientBalance
+                  ? "Insufficient"
+                  : !bfxReady
+                    ? "SDK loading..."
+                    : "Swap (SDK)"}
+          </button>
+          <button
+            onClick={handleContractSwap}
+            disabled={contractSwapDisabled}
+            className="py-4 rounded-xl font-semibold text-base transition-colors bg-violet-700 hover:bg-violet-600 disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed"
+          >
+            {isContractSwapping || (isSwapConfirming && contractSwapTxHash)
+              ? "Swapping..."
+              : !isConnected
+                ? "Connect Wallet"
+                : insufficientBalance
+                  ? "Insufficient"
+                  : "Swap (Contract)"}
+          </button>
+        </div>
+      )}
 
       {/* Tx success */}
       {isSwapConfirmed && swapTxHash && (
