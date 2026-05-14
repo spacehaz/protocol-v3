@@ -363,7 +363,7 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
           <div className="flex justify-between">
             <span>Min received</span>
             <span>
-              {Number(formatUnits(minOutput, toToken.decimals)).toFixed(2)}{" "}
+              {Number(formatUnits(minOutput, toToken.decimals)).toFixed(toToken.decimals > 2 ? 6 : 2)}{" "}
               {toToken.symbol}
             </span>
           </div>
