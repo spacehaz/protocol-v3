@@ -2,6 +2,11 @@ import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { base } from "wagmi/chains";
 import { http } from "wagmi";
 
+
+console.log(
+  process.env.NEXT_PUBLIC_WC_PROJECT_ID,
+  process.env.NEXT_PUBLIC_BASE_RPC_URL
+)
 export const config = getDefaultConfig({
   appName: "DFX V3",
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID ?? "demo",
