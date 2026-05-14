@@ -26,7 +26,7 @@ export const POOLS: Record<PoolId, PoolConfig> = {
     curveAddress: "0x80ba6376c0Ea9A14C1d4411C3639e87d441A6b72",
     baseToken: EURC,
     quoteToken: USDC,
-    baseAssimilatorAddress: "0xE36C126f71F544778CcbF39106fcD3070808e7b3",
+    baseAssimilatorAddress: "0xfB54b950110cF5dD46280742c68C5a855aE85046",
   },
   "xsgd-usdc": {
     id: "xsgd-usdc",
@@ -34,7 +34,7 @@ export const POOLS: Record<PoolId, PoolConfig> = {
     curveAddress: "0xbBb18Abd9aC5D0470B49494D074b2C9f161ccf09",
     baseToken: XSGD,
     quoteToken: USDC,
-    baseAssimilatorAddress: "0xfB54b950110cF5dD46280742c68C5a855aE85046",
+    baseAssimilatorAddress: "0xE36C126f71F544778CcbF39106fcD3070808e7b3",
   },
 };
 
