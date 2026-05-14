@@ -8,7 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
-import { BFX, type IBFX } from "bfx-sdk";
+import { BFX } from "bfx-sdk";
 import { curveAbi, erc20Abi, assimilatorAbi, type PoolConfig } from "@/config/contracts";
 import { type Token } from "@/config/tokens";
 
@@ -92,7 +92,7 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
   }, [isPreviewing, parsedInput]);
 
   // SDK (bfx-sdk) off-chain quote with timing
-  const bfxRef = useRef<IBFX | null>(null);
+  const bfxRef = useRef<BFX | null>(null);
   const [bfxReady, setBfxReady] = useState(false);
   const [sdkRate, setSdkRate] = useState<string | null>(null);
   const [sdkCallMs, setSdkCallMs] = useState<number | null>(null);
@@ -103,12 +103,13 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
     setSdkCallMs(null);
     const rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL ?? "https://mainnet.base.org";
     let cancelled = false;
-    BFX.create(pool.curveAddress, rpcUrl).then((p) => {
+    const bfx = new BFX(rpcUrl);
+    bfx.loadPoolState(pool.baseToken.address, pool.quoteToken.address).then(() => {
       if (!cancelled) {
-        bfxRef.current = p;
+        bfxRef.current = bfx;
         setBfxReady(true);
       } else {
-        p.stop();
+        bfx.stop();
       }
     });
     return () => {
@@ -116,7 +117,7 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
       bfxRef.current?.stop();
       bfxRef.current = null;
     };
-  }, [pool.curveAddress]);
+  }, [pool.curveAddress, pool.baseToken.address, pool.quoteToken.address]);
 
   useEffect(() => {
     if (parsedInput <= 0n || !bfxReady || !bfxRef.current) {
