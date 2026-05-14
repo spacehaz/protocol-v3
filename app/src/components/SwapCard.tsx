@@ -403,13 +403,11 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
           >
             {isSdkSwapping || (isSwapConfirming && sdkSwapTxHash)
               ? "Swapping..."
-              : !isConnected
-                ? "Connect Wallet"
-                : insufficientBalance
-                  ? "Insufficient"
-                  : !bfxReady
-                    ? "SDK loading..."
-                    : "Swap (SDK)"}
+              : insufficientBalance
+                ? "Insufficient"
+                : !bfxReady
+                  ? "SDK loading..."
+                  : "Swap (SDK)"}
           </button>
           <button
             onClick={handleContractSwap}
@@ -418,11 +416,9 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
           >
             {isContractSwapping || (isSwapConfirming && contractSwapTxHash)
               ? "Swapping..."
-              : !isConnected
-                ? "Connect Wallet"
-                : insufficientBalance
-                  ? "Insufficient"
-                  : "Swap (Contract)"}
+              : insufficientBalance
+                ? "Insufficient"
+                : "Swap (Contract)"}
           </button>
         </div>
       )}
