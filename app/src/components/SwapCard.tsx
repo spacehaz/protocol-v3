@@ -107,6 +107,7 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
     const rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL ?? "https://mainnet.base.org";
     let cancelled = false;
     const bfx = new BFX(rpcUrl);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     bfx.loadPoolState(pool.baseToken.address, pool.quoteToken.address).then(() => {
       if (!cancelled) {
         bfxRef.current = bfx;
@@ -114,12 +115,17 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
         const price = Number(state.tokenAOraclePrice) / 10 ** state.oracleDecimals;
         setOracleRateFormatted(price.toFixed(4));
         setBfxReady(true);
+        intervalId = setInterval(() => {
+          const s = bfxRef.current?.getState();
+          if (s) console.log("[bfx pool state]", s);
+        }, 5000);
       } else {
         bfx.stop();
       }
     });
     return () => {
       cancelled = true;
+      if (intervalId) clearInterval(intervalId);
       bfxRef.current?.stop();
       bfxRef.current = null;
     };
