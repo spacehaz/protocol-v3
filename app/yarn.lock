@@ -2624,10 +2624,10 @@ baseline-browser-mapping@^2.10.12, baseline-browser-mapping@^2.9.19:
   resolved "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.10.23.tgz"
   integrity sha512-xwVXGqevyKPsiuQdLj+dZMVjidjJV508TBqexND5HrF89cGdCYCJFB3qhcxRHSeMctdCfbR1jrxBajhDy7o29g==
 
-bfx-sdk@^0.0.1-beta-rc.5:
-  version "0.0.1-beta-rc.5"
-  resolved "https://registry.yarnpkg.com/bfx-sdk/-/bfx-sdk-0.0.1-beta-rc.5.tgz#36c2d152692221fa962673e785ea744181ab2c92"
-  integrity sha512-Z1uy7kHnL2STEfEOD0OS2cE0tLZpbzOIiBeeCLTkQ8uS8Lb1XOiZj+NGd9cN1ebp4JtnbTOTck9SKGGpTVG7uQ==
+bfx-sdk@0.0.1-beta-rc.6:
+  version "0.0.1-beta-rc.6"
+  resolved "https://registry.yarnpkg.com/bfx-sdk/-/bfx-sdk-0.0.1-beta-rc.6.tgz#054367b4fc747baef90180efbd75f397fa7314ce"
+  integrity sha512-lXelyb7VXxk8i5pERoUPqaLNukE86ULBURMIsm/42Bv6VDJ2/9u4IYn4UOkGXyrRWNozpgTj/YXqoMBM33mniQ==
   dependencies:
     viem "^2.48.11"
 
