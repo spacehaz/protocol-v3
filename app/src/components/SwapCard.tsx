@@ -10,7 +10,7 @@ import {
 } from "wagmi";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
 import { BFX } from "bfx-sdk";
-import { curveAbi, erc20Abi, assimilatorAbi, type PoolConfig } from "@/config/contracts";
+import { curveAbi, erc20Abi, type PoolConfig } from "@/config/contracts";
 import { type Token } from "@/config/tokens";
 
 const SLIPPAGE_BPS = 50; // 0.5%
@@ -97,17 +97,22 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
   const [bfxReady, setBfxReady] = useState(false);
   const [sdkRate, setSdkRate] = useState<string | null>(null);
   const [sdkCallMs, setSdkCallMs] = useState<number | null>(null);
+  const [oracleRateFormatted, setOracleRateFormatted] = useState<string | null>(null);
 
   useEffect(() => {
     setBfxReady(false);
     setSdkRate(null);
     setSdkCallMs(null);
+    setOracleRateFormatted(null);
     const rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL ?? "https://mainnet.base.org";
     let cancelled = false;
     const bfx = new BFX(rpcUrl);
     bfx.loadPoolState(pool.baseToken.address, pool.quoteToken.address).then(() => {
       if (!cancelled) {
         bfxRef.current = bfx;
+        const state = bfx.getState();
+        const price = Number(state.tokenAOraclePrice) / 10 ** state.oracleDecimals;
+        setOracleRateFormatted(price.toFixed(4));
         setBfxReady(true);
       } else {
         bfx.stop();
@@ -139,17 +144,6 @@ export function SwapCard({ pool }: { pool: PoolConfig }) {
       setSdkCallMs(null);
     }
   }, [parsedInput, bfxReady, fromToken.address, toToken.address, toToken.decimals, inputAmount]);
-
-  // Oracle rate from base assimilator (8 decimals)
-  const { data: oracleRate } = useReadContract({
-    address: pool.baseAssimilatorAddress,
-    abi: assimilatorAbi,
-    functionName: "getRate",
-  });
-
-  const oracleRateFormatted = oracleRate
-    ? (Number(oracleRate) / 1e8).toFixed(4)
-    : null;
 
   const needsApproval =
     parsedInput > 0n && allowance !== undefined && allowance < parsedInput;
